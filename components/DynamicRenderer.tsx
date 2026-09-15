@@ -26,14 +26,14 @@ const CustomNode = ({ data }: { data: any }) => {
       <motion.div
         animate={{
           scale: isPulsing ? [1, 1.05, 1] : 1,
-          boxShadow: isHighlighted ? `0 0 15px ${c.glow}` : "0 0 0px transparent"
+          boxShadow: isHighlighted ? `0 0 25px ${c.glow}` : "0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1)"
         }}
-        transition={{ duration: 0.5, repeat: isPulsing ? Infinity : 0 }}
-        className="px-4 py-2 rounded-lg border-2 shadow-sm"
-        style={{ backgroundColor: c.fill, borderColor: c.stroke, color: c.text }}
+        transition={{ duration: 0.6, repeat: isPulsing ? Infinity : 0 }}
+        className="px-5 py-3 rounded-xl border-2 backdrop-blur-md w-[200px]"
+        style={{ backgroundColor: `${c.fill}F0`, borderColor: c.stroke, color: c.text }}
       >
-        <div className="font-bold text-sm text-center">{data.label}</div>
-        {data.sublabel && <div className="text-[10px] text-center opacity-80 mt-1">{data.sublabel}</div>}
+        <div className="font-bold text-base text-center tracking-tight leading-snug">{data.label}</div>
+        {data.sublabel && <div className="text-xs text-center opacity-90 mt-1.5 font-medium leading-tight">{data.sublabel}</div>}
       </motion.div>
       <Handle type="source" position={Position.Bottom} className="opacity-0" />
     </>
@@ -51,7 +51,7 @@ const getLayoutedElements = (nodes: any[], edges: any[], direction = "TB") => {
   dagreGraph.setGraph({ rankdir: direction });
 
   nodes.forEach((node) => {
-    dagreGraph.setNode(node.id, { width: 150, height: 50 });
+    dagreGraph.setNode(node.id, { width: 220, height: 80 });
   });
 
   edges.forEach((edge) => {
@@ -65,8 +65,8 @@ const getLayoutedElements = (nodes: any[], edges: any[], direction = "TB") => {
     node.targetPosition = direction === "LR" ? "left" : "top";
     node.sourcePosition = direction === "LR" ? "right" : "bottom";
     node.position = {
-      x: nodeWithPosition.x - 150 / 2,
-      y: nodeWithPosition.y - 50 / 2,
+      x: nodeWithPosition.x - 220 / 2,
+      y: nodeWithPosition.y - 80 / 2,
     };
     return node;
   });
@@ -180,7 +180,7 @@ export default function DynamicRenderer({ data }: { data: any }) {
         </div>
       )}
       
-      <div className="h-[400px] w-full bg-slate-50 rounded-xl overflow-hidden border border-slate-200 relative">
+      <div className="h-[600px] w-full bg-slate-50/50 rounded-2xl overflow-hidden border border-slate-200/60 relative shadow-inner backdrop-blur-sm">
         <ReactFlow
           nodes={nodes}
           edges={edges}

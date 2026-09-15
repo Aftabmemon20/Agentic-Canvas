@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import { generateVisual } from "@/lib/gemini";
-import { generateLocalFallbackVisual } from "@/lib/local-generator";
 import { supabase } from "@/lib/supabase";
 
 export async function POST(req: NextRequest) {
@@ -43,8 +42,11 @@ export async function POST(req: NextRequest) {
       visual = await generateVisual(normalized);
       if (Array.isArray(visual)) visual = visual[0];
     } catch (aiErr: any) {
-      console.warn(`Gemini API failed or exhausted tokens (${aiErr.message}). Falling back to local logic engine!`);
-      visual = generateLocalFallbackVisual(normalized);
+      console.error(`Gemini API failed:`, aiErr);
+      return NextResponse.json(
+        { error: `AI Generation Failed: ${aiErr.message}` },
+        { status: 500 }
+      );
     }
 
     // 3. Save to cache for future users
@@ -61,8 +63,9 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ...finalVisual, cached: false });
   } catch (err: any) {
     console.error("Generate error:", err);
-    // Ultimate local fallback
-    const fallback = generateLocalFallbackVisual("concept");
-    return NextResponse.json({ ...fallback, cached: false });
+    return NextResponse.json(
+      { error: "Internal server error during generation" },
+      { status: 500 }
+    );
   }
 }

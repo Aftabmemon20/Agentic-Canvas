@@ -1,15 +1,15 @@
-import { GoogleGenerativeAI } from "@google/generative-ai";
+import { GoogleGenAI } from "@google/genai";
 
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
+const ai = new GoogleGenAI({
+  apiKey: process.env.GEMINI_API_KEY,
+});
 
 export async function generateVisual(topic: string) {
-  const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 
   const prompt = `You are an expert visual learning classifier and interactive simulation designer.
 Topic: "${topic}"
 
 Return ONLY raw JSON, no markdown code blocks.
-
 We use a unified dynamic_graph diagram_type for all topics.
 Provide a sequence of animations that explain the topic step-by-step.
 
@@ -20,10 +20,8 @@ Universal Schema:
   "explanation": "3 clear sentences. Sentence 1: What it is. Sentence 2: How it works. Sentence 3: Why it matters.",
   "theme": "blue" | "teal" | "amber" | "purple" | "coral" | "green",
   
-  "mermaid_chart": "graph TD\\n  A[Start] --> B[Process]\\n  B --> C[End]",
-  
   "nodes": [
-    { "id": "1", "label": "Node Label", "sublabel": "optional description", "color": "blue" }
+    { "id": "1", "label": "Node Label", "sublabel": "Detailed description", "color": "blue" }
   ],
   "edges": [
     { "id": "e1-2", "from": "1", "to": "2", "label": "optional label", "animated": true }
@@ -37,12 +35,17 @@ Universal Schema:
 }
 
 Rules:
-- 3-8 nodes for standard node views
-- 3 punchy one-line facts for every topic
-- Break down the explanation into sequential animations using the 'animations' array. Ensure edge ids in animations match the edges' id field.`;
+- 4-10 nodes for detailed standard node views. Structure the graph intelligently (cycles for Water Cycle, trees for hierarchies, etc.).
+- 3 punchy one-line facts for every topic.
+- Break down the explanation into sequential animations using the 'animations' array. Ensure edge ids in animations match the edges' id field.
+- DO NOT INCLUDE markdown wrappers like \`\`\`json. Return raw json.`;
 
-  const result = await model.generateContent(prompt);
-  const text = result.response.text().replace(/```json|```/g, "").trim();
+  const response = await ai.models.generateContent({
+    model: "gemini-3.8-flash",
+    contents: prompt,
+  });
+  
+  const text = response.text.replace(/```json|```/g, "").trim();
   try { return JSON.parse(text); }
   catch { const m = text.match(/\{[\s\S]*\}/); if (m) return JSON.parse(m[0]); throw new Error("Invalid JSON"); }
 }

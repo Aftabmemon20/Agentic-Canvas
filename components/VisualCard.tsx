@@ -1,5 +1,4 @@
 "use client";
-import MermaidRenderer from "./MermaidRenderer";
 import DynamicRenderer from "./DynamicRenderer";
 import IconifyIcon from "./IconifyIcon";
 
@@ -20,7 +19,6 @@ export default function VisualCard({ data }: { data: any }) {
       </div>
 
       <div className="px-4 py-5 space-y-4">
-        {visualData.mermaid_chart && <MermaidRenderer chart={visualData.mermaid_chart} />}
         {visualData.diagram_type === "dynamic_graph" && <DynamicRenderer data={visualData} />}
       </div>
 
