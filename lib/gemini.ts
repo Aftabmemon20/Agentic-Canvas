@@ -4,6 +4,57 @@ const ai = new GoogleGenAI({
   apiKey: process.env.GEMINI_API_KEY,
 });
 
+// Candidate models in priority order for resilience against 503 demand spikes and rate limits
+const FALLBACK_MODELS = Array.from(
+  new Set(
+    [
+      process.env.GEMINI_MODEL,
+      "gemini-3.1-flash-lite",
+      "gemini-2.5-flash",
+      "gemini-2.0-flash",
+      "gemini-1.5-flash",
+    ].filter(Boolean) as string[]
+  )
+);
+
+async function callModelWithRetry(modelName: string, prompt: string, maxRetries = 2): Promise<string> {
+  let lastError: any;
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      const response = await ai.models.generateContent({
+        model: modelName,
+        contents: prompt,
+        config: {
+          responseMimeType: "application/json",
+        },
+      });
+      if (response && response.text) {
+        return response.text;
+      }
+      throw new Error("Empty response from AI model");
+    } catch (err: any) {
+      lastError = err;
+      const errorStr = typeof err?.message === "string" ? err.message : JSON.stringify(err);
+      const isTransient =
+        err?.status === 503 ||
+        errorStr.includes("503") ||
+        errorStr.includes("high demand") ||
+        errorStr.includes("UNAVAILABLE") ||
+        err?.status === 429 ||
+        errorStr.includes("429");
+
+      if (isTransient && attempt < maxRetries) {
+        const delay = 1000 * Math.pow(2, attempt);
+        console.warn(`[Gemini] ${modelName} temporary issue (${err?.status || "503"}). Retrying in ${delay}ms... (attempt ${attempt + 1}/${maxRetries})`);
+        await new Promise((resolve) => setTimeout(resolve, delay));
+        continue;
+      }
+      throw err;
+    }
+  }
+  throw lastError;
+}
+
 export async function generateVisual(topic: string) {
 
   const prompt = `You are an expert visual learning classifier and interactive simulation designer.
@@ -40,13 +91,25 @@ Rules:
 - Break down the explanation into sequential animations using the 'animations' array. Ensure edge ids in animations match the edges' id field.
 - DO NOT INCLUDE markdown wrappers like \`\`\`json. Return raw json.`;
 
-  const response = await ai.models.generateContent({
-    model: "gemini-3.8-flash",
-    contents: prompt,
-  });
-  
-  const text = response.text.replace(/```json|```/g, "").trim();
-  try { return JSON.parse(text); }
-  catch { const m = text.match(/\{[\s\S]*\}/); if (m) return JSON.parse(m[0]); throw new Error("Invalid JSON"); }
+  let lastError: any;
+  for (const model of FALLBACK_MODELS) {
+    try {
+      console.log(`[Gemini] Requesting visual with model: ${model}`);
+      const rawText = await callModelWithRetry(model, prompt);
+      const text = rawText.replace(/```json|```/g, "").trim();
+      try {
+        return JSON.parse(text);
+      } catch {
+        const m = text.match(/\{[\s\S]*\}/);
+        if (m) return JSON.parse(m[0]);
+        throw new Error("Invalid JSON returned by model");
+      }
+    } catch (err: any) {
+      console.warn(`[Gemini] Model ${model} failed, falling back:`, err?.message || err);
+      lastError = err;
+    }
+  }
+
+  throw lastError || new Error("All Gemini models are currently experiencing high demand. Please try again shortly.");
 }
 

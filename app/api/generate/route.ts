@@ -43,8 +43,19 @@ export async function POST(req: NextRequest) {
       if (Array.isArray(visual)) visual = visual[0];
     } catch (aiErr: any) {
       console.error(`Gemini API failed:`, aiErr);
+      
+      let errorMsg = aiErr?.message || "Failed to generate visual";
+      try {
+        const parsed = JSON.parse(errorMsg);
+        if (parsed?.error?.message) {
+          errorMsg = parsed.error.message;
+        }
+      } catch {
+        // Not a JSON string, keep as is
+      }
+
       return NextResponse.json(
-        { error: `AI Generation Failed: ${aiErr.message}` },
+        { error: `AI Generation Failed: ${errorMsg}` },
         { status: 500 }
       );
     }
